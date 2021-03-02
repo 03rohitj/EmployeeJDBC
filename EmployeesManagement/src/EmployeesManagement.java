@@ -23,10 +23,8 @@ class LOGGER{
 
 //Class to hold details of an employee
 class Employee{
-      
-   private int eId;  //Employee ID
    private String eName,eDept;   //Employee name and deptartment
-   private char eGender;   //Employee Gender : M or F
+   private char eGender;   //Employee Gender : M, F or O
    private long eSalary;   //Employee Salary
    
    //Default constructor.
@@ -56,23 +54,22 @@ class Employee{
    private void insertEmployee(){
       Scanner sc = new Scanner(System.in);
       
-      LOGGER.log(Level.INFO,"\nEnter employee details\n");
+      LOGGER.log(Level.OFF,"\nEnter employee details\n");
 
-      LOGGER.log(Level.INFO,"\nFull Name  : ");
+      LOGGER.log(Level.OFF,"\nFull Name     : ");
       eName = sc.nextLine();
 
-      LOGGER.log(Level.INFO,"\nGender     : ");
+      LOGGER.log(Level.OFF,"\nGender(M|F|O) : ");
       eGender = sc.next().toUpperCase().charAt(0);
 
-      LOGGER.log(Level.INFO,"\nSalary     : "); 
+      LOGGER.log(Level.OFF,"\nSalary        : "); 
       eSalary = sc.nextLong();
 
       sc.nextLine();    //To skip '\n' character
 
-      LOGGER.log(Level.INFO,"\nDepartment : ");
+      LOGGER.log(Level.OFF,"\nDepartment    : ");
       eDept = sc.nextLine();
 
-      //sc.close();
    }
 
    //return Employee name
@@ -89,40 +86,32 @@ class Employee{
 
 }
 
-
+//Driver Class
 public class EmployeesManagement{
 
-   static final String DB_NAME = "EmployeesManagement";
-   static final String TABLE_NAME = "emp";
-   static final String SQL_EMPID = "empid";
-   static final String SQL_NAME = "ename";
-   static final String SQL_DEPT = "edept";
-   static final String SQL_GENDER = "egender";
-   static final String SQL_SALARY = "esalary";
+   //Constants for Database Operations
+   static final String DB_NAME = "EmployeesManagement";  //Database name
+   static final String TABLE_NAME = "emp";   //Table(Schema) name
+   static final String SQL_USERNAME= "root";     
+   static final String SQL_PASSWORD= "Rohit@1997";
 
-   //HashMap to store all the employee records
-   private static HashMap<Integer,Employee> employeeList = new HashMap<>();
-   
-   //To generate unique empid
-   private static int NEXT_EMPID;
+   //Following are the database column names
+   static final String SQL_EMPID = "empid";  //Employee Id 
+   static final String SQL_NAME = "ename";   //Employee Full Name
+   static final String SQL_DEPT = "edept";   //Employee Department
+   static final String SQL_GENDER = "egender";  //Employee Gender(M, F or O[ther])
+   static final String SQL_SALARY = "esalary";  //Employee Salary per annum
 
-   //Initialize static members
-   static{
-      NEXT_EMPID = 0;
-   }
 
-   //return next Employee Id
-   private static int getNextId(){
-      return ++NEXT_EMPID;
-   }
-
-   //Reference of Connection
+   //Reference of JDBC Connection
    private static Connection connection;
+
+   //Statements to execute insert, update, delete and select query
    private static PreparedStatement insertStatement, updateStatement, deleteStatement, displayStatement;
+
 
    //method to execute insert SQL query
    static void executeInsertSQL() throws SQLException {
-
       Employee empObj = new Employee();
 
       //Insert employee name
@@ -138,43 +127,44 @@ public class EmployeesManagement{
       insertStatement.setLong(4, empObj.getSalary());
       
       if( insertStatement.executeUpdate() > 0 )
-         LOGGER.log(Level.INFO, "Data inserted");
+         LOGGER.log(Level.INFO, "Data inserted\n");
       else
-         LOGGER.log(Level.SEVERE, "Insertion Failed");
-
+         LOGGER.log(Level.SEVERE, "Insertion Failed\n");
    }
+
 
    //Method to execute display SQL query(i.e. select query)
    static void executeDisplaySQL() throws SQLException {
-
       ResultSet rs = displayStatement.executeQuery();
 
       //if database is empty
       if( rs.next() == false )
-         LOGGER.log(Level.WARNING, "No records to display");
+         LOGGER.log(Level.WARNING, "No records to display\n");
       else{
          //Display details of all the employees
          int empId;
          Employee obj;
          do{
             empId = rs.getInt(SQL_EMPID);
-         
             obj = new Employee(rs.getString(SQL_NAME),rs.getString(SQL_DEPT),rs.getString(SQL_GENDER).charAt(0),rs.getLong(SQL_SALARY));
             displayEmployee(empId, obj);
          }
          while( rs.next() );
       }
-
    }
 
 
+   //Method to execute update SQL query
    static void executeUpdateSQL() throws SQLException {
-
-      //Update an employee
-      LOGGER.log(Level.INFO,"Update an employee record\n");
-      LOGGER.log(Level.INFO,"Employee Id : ");
+      LOGGER.log(Level.OFF,"Update an employee record\n");
+      LOGGER.log(Level.OFF,"Employee Id : ");
       int eId = new Scanner(System.in).nextInt();
       
+      if( !isValidEmpId(eId)){
+         LOGGER.log(Level.SEVERE, "Invalid Employee Id\n");
+         return;
+      }
+
       Employee empObj = new Employee();
 
       //update employee name
@@ -197,11 +187,27 @@ public class EmployeesManagement{
       if( rows > 0 )
          LOGGER.log(Level.INFO, "Data Updated, "+rows+" affected");
       else
-         LOGGER.log(Level.SEVERE, "Updation Failed");
+         LOGGER.log(Level.SEVERE, "Updation Failed...Record Not Found\n");
 
    }
 
-   //Display a particular employee
+   //Method to check whether input eId exists( return true ) in database or not( return false)
+   static boolean isValidEmpId(int eId) throws SQLException {
+      boolean isValidEmpId = false;
+
+      //Statment to get all EmpId
+      PreparedStatement pSt = connection.prepareStatement("select "+SQL_EMPID+" from "+TABLE_NAME);
+      ResultSet resEmpId = pSt.executeQuery();
+      while( resEmpId.next() ){
+         if( resEmpId.getInt(1) == eId){  //valid eId i.e. EmpId exists in database
+            isValidEmpId = true;
+            break;
+         }
+      }
+      
+      return isValidEmpId;
+   }
+   //Method to display a particular employee
    static void displayEmployee(int empId, Employee obj){      
       LOGGER.log(Level.INFO,"Emp Id     : "+ empId);
       LOGGER.log(Level.INFO,"Name       : "+ obj.getName());
@@ -210,27 +216,22 @@ public class EmployeesManagement{
       LOGGER.log(Level.INFO,"Department : "+ obj.getDept()+ "\n");
    }
 
-   //Delete an employee
-   static Employee deleteEmployee(int eId){      
-      Employee tempObj = null;
-      if( employeeList.containsKey(eId) ){
-         tempObj = new Employee(employeeList.get(eId));
-         employeeList.remove(eId);
-      }
-
-      return tempObj;
+   //Method to execute delete SQL query
+   static void executeDeleteSQL() throws SQLException {
+      LOGGER.log(Level.OFF,"Delete Employee \n");
+      LOGGER.log(Level.OFF,"Employee ID : ");
+      int eId = new Scanner(System.in).nextInt();
+      deleteStatement.setInt(1, eId);
+      int rows = deleteStatement.executeUpdate();
+      if( rows > 0 )
+         LOGGER.log(Level.INFO,"Record Deleted\n");
+      else
+         LOGGER.log(Level.WARNING, "Deletion Failed...Record Not Found\n");
    }
 
-
-   //To update details of Employee having given eId
-   static boolean updateEmployee(int eId){
-      
-      
-      return false;
-   }
-
-   //Driver method
+   //main method
    public static void main(String[] args) {
+      //flag to break loop
       boolean exitFlag = false;
 
       try{
@@ -238,16 +239,9 @@ public class EmployeesManagement{
          //Registering the driver
          Class.forName("com.mysql.cj.jdbc.Driver");
 
-         //Create connection
-         /*
-            EmployeesManagerment : Database name
-            localhost            : Server name
-            root                 : Username
-            Rohit@1997           : Password
-         */
+        //Create connection
          connection = DriverManager.getConnection("jdbc:mysql://localhost/"+DB_NAME+"?" +
-         "user=root&password=Rohit@1997");
-         System.out.println("Connected successfully!!");
+         "user="+SQL_USERNAME+"&password="+SQL_PASSWORD);
 
          //Statement to insert data
          insertStatement = connection.prepareStatement("INSERT INTO "+TABLE_NAME+" ("
@@ -267,7 +261,10 @@ public class EmployeesManagement{
                            +SQL_SALARY+"=? "
                            +"WHERE "
                            +SQL_EMPID+"=?");
-                           
+         
+         //Statement to delete a record
+         deleteStatement = connection.prepareStatement("delete from "+TABLE_NAME+" where "
+                           +SQL_EMPID+"=?");
 
          while(!exitFlag){
             
@@ -289,21 +286,13 @@ public class EmployeesManagement{
             }
    
             else if(choice == 4){
-               //Delete an employee
-               LOGGER.log(Level.INFO,"Delete Employee \n");
-               LOGGER.log(Level.INFO,"Employee ID : ");
-               int eId = new Scanner(System.in).nextInt();
-               if( deleteEmployee(eId) != null )
-                  LOGGER.log(Level.INFO,"Employee record deleted\n");
+               executeDeleteSQL();
             }
             else if(choice == 5)
                exitFlag = true;
             
          }//End of while
 
-
-         //Closing the database connection
-         connection.close();
       }
       catch(SQLException e){
          LOGGER.log(Level.SEVERE, "Exception : "+e);
@@ -311,8 +300,22 @@ public class EmployeesManagement{
          //ClassNotFoundException could be generated while registering the driver, i.e Class.forName()
          LOGGER.log(Level.SEVERE, "Exception : "+e);
       }
+      finally{
+         //Closing the database connection and statements
+         try {
+            connection.close();
+            insertStatement.close();
+            updateStatement.close();
+            deleteStatement.close();
+            displayStatement.close();
 
-
+         } catch(SQLException e) {
+            LOGGER.log(Level.SEVERE, "Exception : "+e);
+         }
+         catch(Exception e) {
+            LOGGER.log(Level.SEVERE, "Exception : "+e);
+         }
+      }
       
    }
 }
